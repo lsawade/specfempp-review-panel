@@ -1,0 +1,370 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f4f4f4;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    background-color: #72aae2;
+    color: white;
+    padding: 2rem;
+    text-align: center;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.benchmark-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.benchmark-section h2 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.benchmark-section a {
+    display: block;
+    transition: opacity 0.3s ease;
+}
+
+.benchmark-section a:hover {
+    opacity: 0.9;
+}
+
+.benchmark-section img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    margin: 0 auto;
+}
+
+.pr-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.pr-section h2 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.card img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.card h2 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.card p {
+    color: #666;
+}
+
+.badge-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.badge-container img {
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    margin-bottom: 0 !important;
+}
+
+/* PR Matrix Table Styles */
+.pr-matrix-container {
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+
+.pr-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
+}
+
+.pr-matrix thead {
+    background-color: #f8f9fa;
+}
+
+.pr-matrix th {
+    padding: 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+.pr-matrix .pr-info-cell {
+    min-width: 300px;
+    max-width: 400px;
+    white-space: normal;
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 5;
+}
+
+.pr-matrix thead .pr-info-cell {
+    z-index: 15;
+    background-color: #f8f9fa;
+}
+
+.pr-matrix .pr-author-cell {
+    min-width: 100px;
+    white-space: nowrap;
+}
+
+.pr-matrix .check-header {
+    height: 120px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: 0;
+    vertical-align: bottom;
+    position: relative;
+    overflow: hidden;
+}
+
+.pr-matrix .check-name {
+    transform: rotate(-90deg);
+    transform-origin: left bottom;
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    width: 115px;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: -5px;
+}
+
+.pr-matrix tbody tr {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.pr-matrix tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.pr-matrix td {
+    padding: 0.75rem 0.5rem;
+    border-right: 1px solid #f0f0f0;
+}
+
+.pr-matrix .pr-info-cell a {
+    color: #2c3e50;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.pr-matrix .pr-info-cell a:hover {
+    color: #3498db;
+    text-decoration: underline;
+}
+
+.pr-matrix .check-cell {
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    padding: 0.5rem;
+    min-width: 40px;
+}
+
+.pr-matrix .check-cell.check-success {
+    background-color: #d4edda;
+    color: #28a745;
+}
+
+.pr-matrix .check-cell.check-failure {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+.pr-matrix .check-cell.check-pending {
+    background-color: #d1ecf1;
+    color: #17a2b8;
+}
+
+.pr-matrix .check-cell.check-empty {
+    background-color: #f8f9fa;
+    color: #999;
+}
+
+.pr-matrix .check-cell.check-unknown {
+    background-color: #fff3cd;
+    color: #ffc107;
+}
+
+/* Old list styles for backwards compatibility */
+.pr-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pr-list li {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid #999;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pr-list li.pr-passing {
+    background-color: #d4edda;
+    border-left-color: #28a745;
+}
+
+.pr-list li.pr-failing {
+    background-color: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.pr-list li.pr-pending {
+    background-color: #d1ecf1;
+    border-left-color: #17a2b8;
+}
+
+.pr-list li.pr-no-checks {
+    background-color: #f8f9fa;
+    border-left-color: #6c757d;
+}
+
+.pr-list li.pr-unknown {
+    background-color: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.pr-status {
+    font-weight: bold;
+    font-size: 1.2rem;
+    min-width: 1.5rem;
+}
+
+.pr-list a {
+    color: #2c3e50;
+    text-decoration: none;
+    font-weight: 500;
+    flex: 1;
+}
+
+.pr-list a:hover {
+    color: #3498db;
+    text-decoration: underline;
+}
+
+.pr-author {
+    font-size: 0.85rem;
+    color: #666;
+    white-space: nowrap;
+}
+
+.loading {
+    color: #666;
+    font-style: italic;
+}
+
+.no-failures {
+    color: #28a745;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.error {
+    color: #dc3545;
+    font-size: 0.9rem;
+}
+
+.footer {
+    background-color: #72aae2;
+    color: white;
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header {
+        padding: 1.5rem;
+    }
+    
+    .main {
+        gap: 1.5rem;
+    }
+    
+    .card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}

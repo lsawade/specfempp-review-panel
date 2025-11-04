@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Grid Layout</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Plotly.js for interactive benchmark plots -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>SPECFEM++ Review Panel</h1>
+        </header>
+
+        <div class="benchmark-section">
+            <h2>Nightly Benchmark</h2>
+            <!-- Interactive Plotly benchmark plots rendered by plot_benchmarks.js -->
+            <div id="benchmark-plots" style="width:100%; min-height:600px;"></div>
+        </div>
+
+        
+        
+        <main class="main">
+            <div class="card">
+                <h2>Main Branch CI</h2>
+                <div class="badge-container">
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/GNU_main/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FGNU_main&build=last&subject=GCC%2F(main)" alt="GCC (main)">
+                    </a>
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/Intel_main/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FIntel_main&build=last&subject=IntelLLVM%2F(main)" alt="IntelLLVM (main)">
+                    </a>
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/NVIDIA_main/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FNVIDIA_main&build=last&subject=NVIDIA%2F(main)" alt="NVIDIA (main)">
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Devel Branch CI</h2>
+                <div class="badge-container">
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/GNU_devel/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FGNU_devel&build=last&subject=GCC%2F(devel)" alt="GCC (devel)">
+                    </a>
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/Intel_devel/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FIntel_devel&build=last&subject=IntelLLVM%2F(devel)" alt="IntelLLVM (devel)">
+                    </a>
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/NVIDIA_devel/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FNVIDIA_devel&build=last&subject=NVIDIA%2F(devel)" alt="NVIDIA (devel)">
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Nightly Benchmarks</h2>
+                <div class="badge-container">
+                    <a href="https://jenkins.princeton.edu/job/SpecFEM_KOKKOS/job/Nightly_Benchmarks/" target="_blank">
+                        <img src="https://jenkins.princeton.edu/buildStatus/icon?job=SpecFEM_KOKKOS%2FNightly_Benchmarks&build=last&subject=Nightly%2FBenchmarks" alt="GCC (devel)">
+                    </a>
+                </div>
+            </div>
+            
+        </main>
+
+        <div class="pr-section">
+            <h2>Open Pull Requests</h2>
+            <div id="failing-prs">
+                <p class="loading">Loading PR status...</p>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <p>&copy; 2025 SPECFEM++ Project</p>
+        </footer>
+    </div>
+
+    <script src="token.js"></script>
+    <script src="js/pr_info_fetch.js"></script>
+    <script src="js/plot_benchmarks.js"></script>
+</body>
+</html>
