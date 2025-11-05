@@ -5,9 +5,6 @@
  * stacked bar charts showing execution time by region with date range sliders.
  */
 
-// Configuration - adjust this path to match your server setup
-const BENCHMARK_BASE_URL = '/home/TROMP/SPECFEMPP-benchmarks/nightly_benchmarks/data/benchmarks';
-
 /**
  * Parse ISO timestamp string to Date object
  */
@@ -36,16 +33,22 @@ async function fetchJSON(url) {
 async function discoverBenchmarkFiles() {
     // Option 1: Try to fetch a manifest file that lists all benchmark files
     try {
+        console.log('Attempting to fetch benchmarks_manifest.json...');
         const manifest = await fetchJSON('benchmarks_manifest.json');
+        console.log('Manifest fetched:', manifest);
         if (manifest && manifest.files) {
+            console.log(`Found ${manifest.files.length} files in manifest`);
             return manifest.files;
+        } else {
+            console.warn('Manifest exists but has no files array');
         }
     } catch (e) {
-        console.log('No manifest found, using fallback method');
+        console.error('Error fetching manifest:', e);
     }
     
     // Option 2: Hardcoded list or empty array
     // In production, you'd generate benchmarks_manifest.json with your build process
+    console.warn('Returning empty file list');
     return [];
 }
 
