@@ -86,7 +86,9 @@ function createPlotlyFigure(benchmarkGroups) {
         return null;
     }
     
-    const cols = 2;
+    // Responsive layout: 1 column on mobile (<768px), 2 columns on desktop
+    const isMobile = window.innerWidth < 768;
+    const cols = isMobile ? 1 : 2;
     const rows = Math.ceil(numBenchmarks / cols);
     
     // Collect all unique regions for consistent coloring
@@ -214,6 +216,13 @@ function createPlotlyFigure(benchmarkGroups) {
     
     console.log(`Showing ${visibleAnnotations.length} of ${annotations.length} annotations (range: ${rangeDays.toFixed(1)} days, threshold: 7 days)`);
     
+    // Calculate responsive height: more space for vertical stacking
+    const baseHeight = isMobile ? 500 : 400; // Per subplot
+    const totalHeight = baseHeight * rows + 180; // Add margin for legend
+    
+    // Legend positioning: adjust based on number of rows (closer for stacked mobile view)
+    const legendY = isMobile ? -0.15 : -0.45;
+    
     // Build layout with subplots
     const layout = {
         barmode: 'stack',
@@ -221,13 +230,20 @@ function createPlotlyFigure(benchmarkGroups) {
         legend: {
             orientation: 'h',
             yanchor: 'top',
-            y: -0.35,
+            y: legendY,
             xanchor: 'center',
             x: 0.5
         },
         annotations: visibleAnnotations,
-        grid: { rows: rows, columns: cols, pattern: 'independent' },
+        grid: { 
+            rows: rows, 
+            columns: cols, 
+            pattern: 'independent',
+            roworder: 'top to bottom',
+            ygap: 0.4  // Vertical spacing between subplots (15%)
+        },
         autosize: true,
+        height: totalHeight,
         margin: { t: 60, b: 180, l: 60, r: 40 },
         // Store all annotations for dynamic updates
         _allAnnotations: annotations
@@ -242,7 +258,7 @@ function createPlotlyFigure(benchmarkGroups) {
         
         layout[xaxisKey] = {
             type: 'date',
-            title: 'Date',
+            title: 'Date Range Selector',
             // Show range slider on all subplots
             rangeslider: { visible: true, thickness: 0.05 },
             // Only show range selector on first subplot
@@ -259,7 +275,9 @@ function createPlotlyFigure(benchmarkGroups) {
         };
         
         layout[yaxisKey] = {
-            title: 'Time (s)'
+            title: 'Time (s)',
+            autorange: true,
+            fixedrange: false
         };
     });
     
@@ -408,3 +426,16 @@ if (document.readyState === 'loading') {
 } else {
     renderBenchmarkPlots();
 }
+
+// Re-render on window resize to handle responsive layout changes
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        const container = document.getElementById('benchmark-plots');
+        if (container && container.data) {
+            console.log('Window resized, re-rendering plots...');
+            renderBenchmarkPlots();
+        }
+    }, 250); // Debounce resize events
+});
