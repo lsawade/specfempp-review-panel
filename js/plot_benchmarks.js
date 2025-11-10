@@ -197,9 +197,13 @@ function createPlotlyFigure(benchmarkGroups) {
                     const avg = regionSums[region] / regionCounts[region];
                     regionData[region][dateIdx] = avg;
                     
-                    // Store git commit hash for click handling (use first measurement's hash)
-                    if (regionTimestamps[region].length > 0 && regionTimestamps[region][0].git_commit) {
-                        regionCustomData[region][dateIdx] = regionTimestamps[region][0].git_commit.hash;
+                    // Store all git commit hashes for click handling
+                    const commitHashes = regionTimestamps[region]
+                        .map(m => m.git_commit?.hash)
+                        .filter(hash => hash !== undefined && hash !== null);
+                    if (commitHashes.length > 0) {
+                        // Remove duplicates
+                        regionCustomData[region][dateIdx] = [...new Set(commitHashes)];
                     }
                     
                     // Build hover text showing individual measurements if multiple
@@ -472,9 +476,11 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
         container.on('plotly_click', function(data) {
             const point = data.points[0];
             if (point.customdata) {
-                const commitHash = point.customdata;
-                const commitUrl = `https://github.com/PrincetonUniversity/specfem2d_kokkos/commit/${commitHash}`;
-                window.open(commitUrl, '_blank');
+                const commitHashes = Array.isArray(point.customdata) ? point.customdata : [point.customdata];
+                commitHashes.forEach(commitHash => {
+                    const commitUrl = `https://github.com/PrincetonUniversity/specfem2d_kokkos/commit/${commitHash}`;
+                    window.open(commitUrl, '_blank');
+                });
             }
         });
         
