@@ -5,9 +5,9 @@
 
 # Configuration
 SOURCE_DIR="/home/TROMP/SPECFEMPP-benchmarks/nightly_benchmarks/data/benchmarks"
-DEST_DIR="/tigress/lsawade/public_html/minimal_specfempp_review/benchmarks"
-MANIFEST_FILE="/tigress/lsawade/public_html/minimal_specfempp_review/benchmarks_manifest.json"
-BADGES_DIR="/tigress/lsawade/public_html/minimal_specfempp_review/badges"
+DEST_DIR="/projects/TROMP/public_html/specfempp-review-panel/benchmarks"
+MANIFEST_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest.json"
+BADGES_DIR="/projects/TROMP/public_html/specfempp-review-panel/badges"
 
 # Create destination directories if they don't exist
 mkdir -p "$DEST_DIR"

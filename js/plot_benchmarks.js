@@ -130,19 +130,51 @@ function createPlotlyFigure(benchmarkGroups) {
             regions: data.regions || []
         })).sort((a, b) => a.date - b.date);
         
-        const dates = dataPoints.map(d => d.date.toISOString().split('T')[0]);
-        const totals = dataPoints.map(d => d.total);
+        // Group by date and average measurements for the same day
+        const dateGroups = {};
+        dataPoints.forEach(dp => {
+            const dateStr = dp.date.toISOString().split('T')[0];
+            if (!dateGroups[dateStr]) {
+                dateGroups[dateStr] = [];
+            }
+            dateGroups[dateStr].push(dp);
+        });
         
-        // Build region data
+        // Average measurements for each date
+        const dates = Object.keys(dateGroups).sort();
+        const totals = dates.map(dateStr => {
+            const points = dateGroups[dateStr];
+            const avgTotal = points.reduce((sum, p) => sum + p.total, 0) / points.length;
+            return avgTotal;
+        });
+        
+        // Build region data with averaging
         const regionData = {};
         regionList.forEach(region => {
             regionData[region] = new Array(dates.length).fill(0);
         });
         
-        dataPoints.forEach((dp, dateIdx) => {
-            dp.regions.forEach(r => {
-                if (regionData[r.region] !== undefined) {
-                    regionData[r.region][dateIdx] = r.time;
+        dates.forEach((dateStr, dateIdx) => {
+            const points = dateGroups[dateStr];
+            const regionSums = {};
+            const regionCounts = {};
+            
+            // Sum up region times across all measurements on this date
+            points.forEach(dp => {
+                dp.regions.forEach(r => {
+                    if (!regionSums[r.region]) {
+                        regionSums[r.region] = 0;
+                        regionCounts[r.region] = 0;
+                    }
+                    regionSums[r.region] += r.time;
+                    regionCounts[r.region]++;
+                });
+            });
+            
+            // Calculate averages
+            Object.keys(regionSums).forEach(region => {
+                if (regionData[region] !== undefined) {
+                    regionData[region][dateIdx] = regionSums[region] / regionCounts[region];
                 }
             });
         });
