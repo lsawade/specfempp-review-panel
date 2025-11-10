@@ -9,9 +9,14 @@
 
 /**
  * Parse ISO timestamp string to Date object
+ * Treats timestamps without timezone as UTC to avoid local timezone shifts
  */
 function parseTimestamp(timestampStr) {
-    return new Date(timestampStr.replace('Z', '+00:00'));
+    // If timestamp doesn't have a timezone indicator, treat it as UTC
+    if (!timestampStr.includes('Z') && !timestampStr.includes('+') && !timestampStr.includes('-', 10)) {
+        timestampStr += 'Z';
+    }
+    return new Date(timestampStr);
 }
 
 /**
