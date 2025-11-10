@@ -128,7 +128,8 @@ function createPlotlyFigure(benchmarkGroups) {
             date: parseTimestamp(data.metadata.timestamp),
             total: data.metadata.total_execution_time || 0,
             regions: data.regions || [],
-            hardware: data.metadata.hardware || {}
+            hardware: data.metadata.hardware || {},
+            git_commit: data.metadata.git_commit || null
         })).sort((a, b) => a.date - b.date);
         
         // Group by date and average measurements for the same day
@@ -152,9 +153,11 @@ function createPlotlyFigure(benchmarkGroups) {
         // Build region data with averaging and track individual measurements for hover
         const regionData = {};
         const regionHoverText = {};
+        const regionCustomData = {};
         regionList.forEach(region => {
             regionData[region] = new Array(dates.length).fill(0);
             regionHoverText[region] = new Array(dates.length).fill('');
+            regionCustomData[region] = new Array(dates.length).fill(null);
         });
         
         dates.forEach((dateStr, dateIdx) => {
@@ -182,7 +185,8 @@ function createPlotlyFigure(benchmarkGroups) {
                     regionTimestamps[r.region].push({ 
                         time: timeStr, 
                         value: r.time,
-                        hardware: dp.hardware
+                        hardware: dp.hardware,
+                        git_commit: dp.git_commit
                     });
                 });
             });
@@ -192,6 +196,11 @@ function createPlotlyFigure(benchmarkGroups) {
                 if (regionData[region] !== undefined) {
                     const avg = regionSums[region] / regionCounts[region];
                     regionData[region][dateIdx] = avg;
+                    
+                    // Store git commit hash for click handling (use first measurement's hash)
+                    if (regionTimestamps[region].length > 0 && regionTimestamps[region][0].git_commit) {
+                        regionCustomData[region][dateIdx] = regionTimestamps[region][0].git_commit.hash;
+                    }
                     
                     // Build hover text showing individual measurements if multiple
                     if (regionCounts[region] > 1) {
@@ -206,6 +215,21 @@ function createPlotlyFigure(benchmarkGroups) {
                                 if (hw.architecture) hwItems.push(`• Architecture: ${hw.architecture}`);
                                 if (hw.cpu_model) hwItems.push(`• CPU: ${hw.cpu_model}`);
                                 if (hw.cpu_max_mhz) hwItems.push(`• Max Freq: ${hw.cpu_max_mhz} MHz`);
+                                
+                                // Add git commit info if available
+                                if (m.git_commit && m.git_commit.hash) {
+                                    const shortHash = m.git_commit.hash.substring(0, 7);
+                                    hwItems.push(`• Commit: ${shortHash}`);
+                                    if (m.git_commit.message) {
+                                        // Truncate long commit messages
+                                        const msg = m.git_commit.message.length > 50 
+                                            ? m.git_commit.message.substring(0, 47) + '...' 
+                                            : m.git_commit.message;
+                                        hwItems.push(`  ${msg}`);
+                                    }
+                                    hwItems.push(`  <i>(Click bar to view commit)</i>`);
+                                }
+                                
                                 const hwInfo = hwItems.length > 0 ? '<br>' + hwItems.join('<br>') : '';
                                 return `<b>${m.time}</b>: ${m.value.toFixed(2)}s${hwInfo}`;
                             })
@@ -218,10 +242,26 @@ function createPlotlyFigure(benchmarkGroups) {
                             measurements;
                     } else {
                         const hw = regionTimestamps[region][0].hardware;
+                        const git = regionTimestamps[region][0].git_commit;
                         let hwItems = [];
                         if (hw.architecture) hwItems.push(`• Architecture: ${hw.architecture}`);
                         if (hw.cpu_model) hwItems.push(`• CPU: ${hw.cpu_model}`);
                         if (hw.cpu_max_mhz) hwItems.push(`• Max Freq: ${hw.cpu_max_mhz} MHz`);
+                        
+                        // Add git commit info if available
+                        if (git && git.hash) {
+                            const shortHash = git.hash.substring(0, 7);
+                            hwItems.push(`• Commit: ${shortHash}`);
+                            if (git.message) {
+                                // Truncate long commit messages
+                                const msg = git.message.length > 50 
+                                    ? git.message.substring(0, 47) + '...' 
+                                    : git.message;
+                                hwItems.push(`  ${msg}`);
+                            }
+                            hwItems.push(`  <i>(Click bar to view commit)</i>`);
+                        }
+                        
                         const hwInfo = hwItems.length > 0 ? '<br>' + hwItems.join('<br>') : '';
                         regionHoverText[region][dateIdx] = 
                             `<b>${dateStr}</b><br>` +
@@ -249,6 +289,7 @@ function createPlotlyFigure(benchmarkGroups) {
                 legendgroup: region,
                 showlegend: idx === 0, // Only show legend for first subplot
                 text: regionHoverText[region],
+                customdata: regionCustomData[region],
                 hovertemplate: '%{text}<extra></extra>',
                 textposition: 'none',
                 xaxis: xaxis,
@@ -307,8 +348,10 @@ function createPlotlyFigure(benchmarkGroups) {
             xanchor: 'center',
             x: 0.5
         },
+        hovermode: 'closest',
         hoverlabel: {
-            align: 'left'
+            align: 'left',
+            namelength: -1
         },
         annotations: annotations,
         grid: { 
@@ -424,6 +467,16 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
         console.log('Rendering plot...');
         Plotly.newPlot(container, figure.traces, figure.layout, config);
         console.log('Plot rendered successfully');
+        
+        // Add click event handler to open GitHub commit URLs
+        container.on('plotly_click', function(data) {
+            const point = data.points[0];
+            if (point.customdata) {
+                const commitHash = point.customdata;
+                const commitUrl = `https://github.com/PrincetonUniversity/specfem2d_kokkos/commit/${commitHash}`;
+                window.open(commitUrl, '_blank');
+            }
+        });
         
     } catch (error) {
         console.error('Error rendering benchmarks:', error);
