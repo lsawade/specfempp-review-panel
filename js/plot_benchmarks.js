@@ -127,7 +127,8 @@ function createPlotlyFigure(benchmarkGroups) {
         const dataPoints = files.map(data => ({
             date: parseTimestamp(data.metadata.timestamp),
             total: data.metadata.total_execution_time || 0,
-            regions: data.regions || []
+            regions: data.regions || [],
+            hardware: data.metadata.hardware || {}
         })).sort((a, b) => a.date - b.date);
         
         // Group by date and average measurements for the same day
@@ -148,33 +149,85 @@ function createPlotlyFigure(benchmarkGroups) {
             return avgTotal;
         });
         
-        // Build region data with averaging
+        // Build region data with averaging and track individual measurements for hover
         const regionData = {};
+        const regionHoverText = {};
         regionList.forEach(region => {
             regionData[region] = new Array(dates.length).fill(0);
+            regionHoverText[region] = new Array(dates.length).fill('');
         });
         
         dates.forEach((dateStr, dateIdx) => {
             const points = dateGroups[dateStr];
             const regionSums = {};
             const regionCounts = {};
+            const regionValues = {};
+            const regionTimestamps = {};
+            const hardwareInfo = {};
             
             // Sum up region times across all measurements on this date
             points.forEach(dp => {
+                const timeStr = dp.date.toISOString().split('T')[1].substring(0, 5); // HH:MM
                 dp.regions.forEach(r => {
                     if (!regionSums[r.region]) {
                         regionSums[r.region] = 0;
                         regionCounts[r.region] = 0;
+                        regionValues[r.region] = [];
+                        regionTimestamps[r.region] = [];
+                        hardwareInfo[r.region] = [];
                     }
                     regionSums[r.region] += r.time;
                     regionCounts[r.region]++;
+                    regionValues[r.region].push(r.time);
+                    regionTimestamps[r.region].push({ 
+                        time: timeStr, 
+                        value: r.time,
+                        hardware: dp.hardware
+                    });
                 });
             });
             
-            // Calculate averages
+            // Calculate averages and build hover text
             Object.keys(regionSums).forEach(region => {
                 if (regionData[region] !== undefined) {
-                    regionData[region][dateIdx] = regionSums[region] / regionCounts[region];
+                    const avg = regionSums[region] / regionCounts[region];
+                    regionData[region][dateIdx] = avg;
+                    
+                    // Build hover text showing individual measurements if multiple
+                    if (regionCounts[region] > 1) {
+                        // Sort by timestamp
+                        const sortedMeasurements = regionTimestamps[region]
+                            .sort((a, b) => a.time.localeCompare(b.time));
+                        
+                        const measurements = sortedMeasurements
+                            .map((m, i) => {
+                                const hw = m.hardware;
+                                let hwItems = [];
+                                if (hw.architecture) hwItems.push(`• Architecture: ${hw.architecture}`);
+                                if (hw.cpu_model) hwItems.push(`• CPU: ${hw.cpu_model}`);
+                                if (hw.cpu_max_mhz) hwItems.push(`• Max Freq: ${hw.cpu_max_mhz} MHz`);
+                                const hwInfo = hwItems.length > 0 ? '<br>' + hwItems.join('<br>') : '';
+                                return `<b>${m.time}</b>: ${m.value.toFixed(2)}s${hwInfo}`;
+                            })
+                            .join('<br><br>');
+                        regionHoverText[region][dateIdx] = 
+                            `<b>${dateStr}</b><br>` +
+                            `<b>${region}</b><br>` +
+                            `<b>Average:</b> ${avg.toFixed(2)}s<br>` +
+                            `<b>(${regionCounts[region]} measurements)</b><br><br>` +
+                            measurements;
+                    } else {
+                        const hw = regionTimestamps[region][0].hardware;
+                        let hwItems = [];
+                        if (hw.architecture) hwItems.push(`• Architecture: ${hw.architecture}`);
+                        if (hw.cpu_model) hwItems.push(`• CPU: ${hw.cpu_model}`);
+                        if (hw.cpu_max_mhz) hwItems.push(`• Max Freq: ${hw.cpu_max_mhz} MHz`);
+                        const hwInfo = hwItems.length > 0 ? '<br>' + hwItems.join('<br>') : '';
+                        regionHoverText[region][dateIdx] = 
+                            `<b>${dateStr}</b><br>` +
+                            `<b>${region}</b><br>` +
+                            `<b>Time:</b> ${avg.toFixed(2)}s${hwInfo}`;
+                    }
                 }
             });
         });
@@ -195,7 +248,9 @@ function createPlotlyFigure(benchmarkGroups) {
                 marker: { color: colorMap[region] },
                 legendgroup: region,
                 showlegend: idx === 0, // Only show legend for first subplot
-                hovertemplate: '%{x}<br>%{y:.2f}s<br>' + region + '<extra></extra>',
+                text: regionHoverText[region],
+                hovertemplate: '%{text}<extra></extra>',
+                textposition: 'none',
                 xaxis: xaxis,
                 yaxis: yaxis
             });
@@ -251,6 +306,9 @@ function createPlotlyFigure(benchmarkGroups) {
             y: legendY,
             xanchor: 'center',
             x: 0.5
+        },
+        hoverlabel: {
+            align: 'left'
         },
         annotations: annotations,
         grid: { 
