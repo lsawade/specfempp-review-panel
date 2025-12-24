@@ -326,7 +326,8 @@ function createPlotlyFigure(cpuBenchmarkGroups, gpuBenchmarkGroups) {
         const benchmarkType = benchmarkTypes[idx];
         // Remove CPU_/GPU_ prefix from benchmark name for display
         const displayName = benchmarkName.replace(/^(CPU_|GPU_)/, '');
-        const title = `${benchmarkType}: ${displayName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+        const typeLabel = benchmarkType === 'GPU' ? 'GPU (H100)' : benchmarkType;
+        const title = `${typeLabel}: ${displayName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
         annotations.push({
             text: title,
             xref: idx === 0 ? 'x domain' : `x${idx + 1} domain`,
@@ -400,8 +401,9 @@ function createPlotlyFigure(cpuBenchmarkGroups, gpuBenchmarkGroups) {
             roworder: 'top to bottom',
             ygap: isMobile ? 0.5 : 0.45  // Less gap for mobile (15%), more for desktop (45%)
         },
-        autosize: true,
+        autosize: false,
         height: totalHeight,
+        width: null,  // Let it use container width
         margin: { t: 100, b: 60, l: 60, r: 40 }
     };
     
@@ -507,8 +509,12 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
             return;
         }
         
-        // Clear container and render
+        // Clear container and set fixed height to prevent squeezing
         container.innerHTML = '';
+        container.style.height = `${figure.layout.height}px`;
+        
+        // Set width to match container width explicitly
+        figure.layout.width = container.offsetWidth;
         
         const config = {
             responsive: true,
@@ -532,28 +538,6 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
             }
         });
         
-        // Add legend click handler for isolating traces with shift+click
-        container.on('plotly_legendclick', function(data) {
-            const clickedIndex = data.curveNumber;
-            const event = data.event;
-            
-            // Check if shift key is pressed
-            if (event.shiftKey) {
-                // Get all trace indices that share the same legend group
-                const clickedTrace = figure.traces[clickedIndex];
-                const clickedLegendGroup = clickedTrace.legendgroup;
-                
-                // Create visibility array: show only traces with matching legend group
-                const visibility = figure.traces.map(trace => 
-                    trace.legendgroup === clickedLegendGroup ? true : 'legendonly'
-                );
-                
-                Plotly.restyle(container, { visible: visibility });
-                return false; // Prevent default legend click behavior
-            }
-            // Otherwise, allow default legend click behavior (toggle single trace)
-        });
-        
     } catch (error) {
         console.error('Error rendering benchmarks:', error);
         container.innerHTML = `<p class="error">Error loading benchmarks: ${error.message}<br>Check browser console for details.</p>`;
@@ -567,15 +551,31 @@ if (document.readyState === 'loading') {
     renderBenchmarkPlots();
 }
 
-// Re-render on window resize to handle responsive layout changes
+// Handle responsive layout changes
+// Only full re-render when crossing mobile/desktop breakpoint (layout change needed)
+// Plotly's autosize handles everything else without triggering reloads
 let resizeTimeout;
+let lastWidth = window.innerWidth;
+
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
+        const currentWidth = window.innerWidth;
         const container = document.getElementById('benchmark-plots');
-        if (container && container.data) {
-            console.log('Window resized, re-rendering plots...');
+        
+        if (!container || !container.data) return;
+        
+        // Check if we crossed the mobile/desktop breakpoint (768px)
+        const wasDesktop = lastWidth >= 768;
+        const isDesktop = currentWidth >= 768;
+        const crossedBreakpoint = wasDesktop !== isDesktop;
+        
+        if (crossedBreakpoint) {
+            // Need to re-render with different layout (1 col vs 2 col grid)
+            console.log(`Layout breakpoint crossed (${wasDesktop ? 'desktop -> mobile' : 'mobile -> desktop'}), re-rendering plots...`);
+            lastWidth = currentWidth;
             renderBenchmarkPlots();
         }
-    }, 250); // Debounce resize events
+        // Otherwise do nothing - Plotly's autosize in config handles it
+    }, 250); // Debounce
 });
