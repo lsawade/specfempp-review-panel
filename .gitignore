@@ -2,3 +2,5 @@ token.js
 badges
 benchmarks
 benchmarks_manifest.json
+benchmarks_manifest_gpu.json
+benchmarks_manifest_cpu.json

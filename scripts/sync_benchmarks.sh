@@ -6,45 +6,71 @@
 # Configuration
 SOURCE_DIR="/home/TROMP/SPECFEMPP-benchmarks/nightly_benchmarks/data/benchmarks"
 DEST_DIR="/projects/TROMP/public_html/specfempp-review-panel/benchmarks"
-MANIFEST_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest.json"
+MANIFEST_CPU_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest_cpu.json"
+MANIFEST_GPU_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest_gpu.json"
 BADGES_DIR="/projects/TROMP/public_html/specfempp-review-panel/badges"
 
 # Create destination directories if they don't exist
 mkdir -p "$DEST_DIR"
 mkdir -p "$BADGES_DIR"
 
-# Sync benchmark data (only profiles.json files)
+# Sync benchmark data (only profiles.json files) sync gpu and cpu separately
 echo "Syncing benchmark data from $SOURCE_DIR to $DEST_DIR"
-rsync -av --include='*/' --include='*/profiles.json' --exclude='*' "$SOURCE_DIR/" "$DEST_DIR/"
+rsync -av --include='*/' --include='*/profiles.json' --exclude='*' "$SOURCE_DIR/cpu/" "$DEST_DIR/cpu/"
+rsync -av --include='*/' --include='*/profiles.json' --exclude='*' "$SOURCE_DIR/gpu/" "$DEST_DIR/gpu/"
 
-# Generate manifest file
-echo "Generating manifest file at $MANIFEST_FILE"
-echo '{' > "$MANIFEST_FILE"
-echo '  "files": [' >> "$MANIFEST_FILE"
+# Generate CPU manifest file
+echo "Generating CPU manifest file at $MANIFEST_CPU_FILE"
+echo '{' > "$MANIFEST_CPU_FILE"
+echo '  "files": [' >> "$MANIFEST_CPU_FILE"
 
-# Find all profiles.json files and format as JSON array
-TEMP_FILE=$(mktemp)
-find "$DEST_DIR" -name "profiles.json" -type f | sort | while IFS= read -r file; do
+TEMP_FILE_CPU=$(mktemp)
+find "$DEST_DIR/cpu" -name "profiles.json" -type f | sort | while IFS= read -r file; do
     # Convert absolute path to relative path from web root
     rel_path=$(echo "$file" | sed "s|$DEST_DIR|./benchmarks|")
-    echo "    \"$rel_path\"" >> "$TEMP_FILE"
+    echo "    \"$rel_path\"" >> "$TEMP_FILE_CPU"
 done
 
-# Add files to manifest with proper comma formatting
-if [ -s "$TEMP_FILE" ]; then
+# Add files to CPU manifest with proper comma formatting
+if [ -s "$TEMP_FILE_CPU" ]; then
     # Add commas to all lines except the last
-    sed '$ ! s/$/,/' "$TEMP_FILE" >> "$MANIFEST_FILE"
+    sed '$ ! s/$/,/' "$TEMP_FILE_CPU" >> "$MANIFEST_CPU_FILE"
 fi
-rm -f "$TEMP_FILE"
+rm -f "$TEMP_FILE_CPU"
 
-echo '  ],' >> "$MANIFEST_FILE"
-echo "  \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" >> "$MANIFEST_FILE"
-echo '}' >> "$MANIFEST_FILE"
+echo '  ],' >> "$MANIFEST_CPU_FILE"
+echo "  \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" >> "$MANIFEST_CPU_FILE"
+echo '}' >> "$MANIFEST_CPU_FILE"
+
+# Generate GPU manifest file
+echo "Generating GPU manifest file at $MANIFEST_GPU_FILE"
+echo '{' > "$MANIFEST_GPU_FILE"
+echo '  "files": [' >> "$MANIFEST_GPU_FILE"
+
+TEMP_FILE_GPU=$(mktemp)
+find "$DEST_DIR/gpu" -name "profiles.json" -type f | sort | while IFS= read -r file; do
+    # Convert absolute path to relative path from web root
+    rel_path=$(echo "$file" | sed "s|$DEST_DIR|./benchmarks|")
+    echo "    \"$rel_path\"" >> "$TEMP_FILE_GPU"
+done
+
+# Add files to GPU manifest with proper comma formatting
+if [ -s "$TEMP_FILE_GPU" ]; then
+    # Add commas to all lines except the last
+    sed '$ ! s/$/,/' "$TEMP_FILE_GPU" >> "$MANIFEST_GPU_FILE"
+fi
+rm -f "$TEMP_FILE_GPU"
+
+echo '  ],' >> "$MANIFEST_GPU_FILE"
+echo "  \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" >> "$MANIFEST_GPU_FILE"
+echo '}' >> "$MANIFEST_GPU_FILE"
 
 # Count files synced
-file_count=$(find "$DEST_DIR" -name "profiles.json" -type f | wc -l)
-echo "Sync complete: $file_count benchmark files"
-echo "Manifest updated at $(date)"
+cpu_file_count=$(find "$DEST_DIR/cpu" -name "profiles.json" -type f | wc -l)
+gpu_file_count=$(find "$DEST_DIR/gpu" -name "profiles.json" -type f | wc -l)
+total_file_count=$((cpu_file_count + gpu_file_count))
+echo "Sync complete: $cpu_file_count CPU files, $gpu_file_count GPU files ($total_file_count total)"
+echo "Manifests updated at $(date)"
 
 # Fetch Jenkins badge images
 echo "Fetching Jenkins badge images..."

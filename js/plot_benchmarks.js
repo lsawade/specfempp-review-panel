@@ -37,12 +37,12 @@ async function fetchJSON(url) {
  * Discover benchmark JSON files (requires server directory listing or manifest)
  * For static hosting, you'll need to provide a manifest.json listing the files
  */
-async function discoverBenchmarkFiles() {
-    // Option 1: Try to fetch a manifest file that lists all benchmark files
+async function discoverBenchmarkFiles(manifestFile) {
+    // Try to fetch a manifest file that lists all benchmark files
     try {
-        console.log('Attempting to fetch benchmarks_manifest.json...');
-        const manifest = await fetchJSON('benchmarks_manifest.json');
-        console.log('Manifest fetched:', manifest);
+        console.log(`Attempting to fetch ${manifestFile}...`);
+        const manifest = await fetchJSON(manifestFile);
+        console.log(`Manifest fetched from ${manifestFile}:`, manifest);
         if (manifest && manifest.files) {
             console.log(`Found ${manifest.files.length} files in manifest`);
             return manifest.files;
@@ -50,24 +50,23 @@ async function discoverBenchmarkFiles() {
             console.warn('Manifest exists but has no files array');
         }
     } catch (e) {
-        console.error('Error fetching manifest:', e);
+        console.error(`Error fetching manifest ${manifestFile}:`, e);
     }
     
-    // Option 2: Hardcoded list or empty array
-    // In production, you'd generate benchmarks_manifest.json with your build process
+    // Return empty array if manifest not found
     console.warn('Returning empty file list');
     return [];
 }
 
 /**
- * Group benchmark files by benchmark name
+ * Group benchmark files by benchmark name with optional prefix
  */
-function groupFilesByBenchmark(benchmarkData) {
+function groupFilesByBenchmark(benchmarkData, prefix = '') {
     const groups = {};
     
     for (const data of benchmarkData) {
         if (!data || !data.metadata) continue;
-        const name = data.metadata.benchmark_name;
+        const name = prefix + data.metadata.benchmark_name;
         if (!groups[name]) {
             groups[name] = [];
         }
@@ -88,18 +87,27 @@ function getRegionColor(region, index) {
 /**
  * Create Plotly figure from benchmark groups
  */
-function createPlotlyFigure(benchmarkGroups) {
-    const benchmarkNames = Object.keys(benchmarkGroups);
-    const numBenchmarks = benchmarkNames.length;
+function createPlotlyFigure(cpuBenchmarkGroups, gpuBenchmarkGroups) {
+    const cpuNames = Object.keys(cpuBenchmarkGroups);
+    const gpuNames = Object.keys(gpuBenchmarkGroups);
+    const numCpuBenchmarks = cpuNames.length;
+    const numGpuBenchmarks = gpuNames.length;
     
-    if (numBenchmarks === 0) {
+    if (numCpuBenchmarks === 0 && numGpuBenchmarks === 0) {
         return null;
     }
     
     // Responsive layout: 1 column on mobile (<768px), 2 columns on desktop
+    // Desktop: 2x2 grid (top row CPU, bottom row GPU)
+    // Mobile: stacked vertically
     const isMobile = window.innerWidth < 768;
     const cols = isMobile ? 1 : 2;
-    const rows = Math.ceil(numBenchmarks / cols);
+    const rows = isMobile ? (numCpuBenchmarks + numGpuBenchmarks) : 2;
+    
+    // Combine all benchmark names in order: CPU benchmarks first, then GPU benchmarks
+    const allBenchmarkNames = [...cpuNames, ...gpuNames];
+    const benchmarkTypes = [...cpuNames.map(() => 'CPU'), ...gpuNames.map(() => 'GPU')];
+    const benchmarkGroups = { ...cpuBenchmarkGroups, ...gpuBenchmarkGroups };
     
     // Collect all unique regions for consistent coloring
     const allRegions = new Set();
@@ -120,8 +128,9 @@ function createPlotlyFigure(benchmarkGroups) {
     const traces = [];
     const annotations = [];
     
-    benchmarkNames.forEach((benchmarkName, idx) => {
+    allBenchmarkNames.forEach((benchmarkName, idx) => {
         const files = benchmarkGroups[benchmarkName];
+        const benchmarkType = benchmarkTypes[idx];
         
         // Collect and sort data by date
         const dataPoints = files.map(data => ({
@@ -277,8 +286,18 @@ function createPlotlyFigure(benchmarkGroups) {
         });
         
         // Subplot position (1-indexed)
-        const row = Math.floor(idx / cols) + 1;
-        const col = (idx % cols) + 1;
+        // Desktop: 2x2 layout (CPU benchmarks on row 1, GPU benchmarks on row 2)
+        // Mobile: stacked vertically
+        let row, col;
+        if (isMobile) {
+            row = idx + 1;
+            col = 1;
+        } else {
+            // First two benchmarks (CPU) go on row 1, next two (GPU) go on row 2
+            row = Math.floor(idx / 2) + 1;
+            col = (idx % 2) + 1;
+        }
+        
         const xaxis = idx === 0 ? 'x' : `x${idx + 1}`;
         const yaxis = idx === 0 ? 'y' : `y${idx + 1}`;
         
@@ -303,9 +322,13 @@ function createPlotlyFigure(benchmarkGroups) {
     });
     
     // Add subplot titles as annotations
-    benchmarkNames.forEach((benchmarkName, idx) => {
+    allBenchmarkNames.forEach((benchmarkName, idx) => {
+        const benchmarkType = benchmarkTypes[idx];
+        // Remove CPU_/GPU_ prefix from benchmark name for display
+        const displayName = benchmarkName.replace(/^(CPU_|GPU_)/, '');
+        const title = `${benchmarkType}: ${displayName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
         annotations.push({
-            text: benchmarkName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            text: title,
             xref: idx === 0 ? 'x domain' : `x${idx + 1} domain`,
             yref: idx === 0 ? 'y domain' : `y${idx + 1} domain`,
             x: 0.5,
@@ -318,9 +341,18 @@ function createPlotlyFigure(benchmarkGroups) {
         });
     });
     
-    // Calculate initial date range in days
+    // Calculate initial date range in days from both CPU and GPU data
     const allDates = [];
-    for (const files of Object.values(benchmarkGroups)) {
+    
+    // Collect dates from CPU benchmarks
+    for (const files of Object.values(cpuBenchmarkGroups)) {
+        files.forEach(data => {
+            allDates.push(parseTimestamp(data.metadata.timestamp));
+        });
+    }
+    
+    // Collect dates from GPU benchmarks
+    for (const files of Object.values(gpuBenchmarkGroups)) {
         files.forEach(data => {
             allDates.push(parseTimestamp(data.metadata.timestamp));
         });
@@ -332,14 +364,17 @@ function createPlotlyFigure(benchmarkGroups) {
         const maxDate = new Date(Math.max(...allDates));
         rangeDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
         console.log(`Initial date range: ${rangeDays.toFixed(1)} days (${minDate.toISOString().split('T')[0]} to ${maxDate.toISOString().split('T')[0]})`);
+        console.log(`  Total dates collected: ${allDates.length} (CPU + GPU)`);
     }
     
     // Calculate responsive height: more space for vertical stacking
-    const baseHeight = isMobile ? 500 : 400; // Per subplot
-    const totalHeight = baseHeight * rows + 180; // Add margin for legend
+    // Desktop needs extra space for range sliders between rows
+    const baseHeight = isMobile ? 500 : 450; // Per subplot
+    const gapSpace = isMobile ? 0 : 100; // Extra space for gaps between rows on desktop
+    const totalHeight = baseHeight * rows + gapSpace + 80; // Reduced bottom space since legend is on top
     
-    // Legend positioning: adjust based on number of rows (closer for stacked mobile view)
-    const legendY = isMobile ? -0.15 : -0.45;
+    // Legend positioning: more space on desktop, less on mobile
+    const legendY = isMobile ? 1.04 : 1.09;
     
     // Build layout with subplots
     const layout = {
@@ -347,7 +382,7 @@ function createPlotlyFigure(benchmarkGroups) {
         showlegend: true,
         legend: {
             orientation: 'h',
-            yanchor: 'top',
+            yanchor: 'bottom',
             y: legendY,
             xanchor: 'center',
             x: 0.5
@@ -363,25 +398,31 @@ function createPlotlyFigure(benchmarkGroups) {
             columns: cols, 
             pattern: 'independent',
             roworder: 'top to bottom',
-            ygap: 0.4  // Vertical spacing between subplots (15%)
+            ygap: isMobile ? 0.5 : 0.45  // Less gap for mobile (15%), more for desktop (45%)
         },
         autosize: true,
         height: totalHeight,
-        margin: { t: 60, b: 180, l: 60, r: 40 }
+        margin: { t: 100, b: 60, l: 60, r: 40 }
     };
     
     // Configure each subplot
-    benchmarkNames.forEach((benchmarkName, idx) => {
-        const row = Math.floor(idx / cols) + 1;
-        const col = (idx % cols) + 1;
+    allBenchmarkNames.forEach((benchmarkName, idx) => {
+        let row, col;
+        if (isMobile) {
+            row = idx + 1;
+            col = 1;
+        } else {
+            row = Math.floor(idx / 2) + 1;
+            col = (idx % 2) + 1;
+        }
         const xaxisKey = idx === 0 ? 'xaxis' : `xaxis${idx + 1}`;
         const yaxisKey = idx === 0 ? 'yaxis' : `yaxis${idx + 1}`;
         
         layout[xaxisKey] = {
             type: 'date',
             title: 'Date Range Selector',
-            // Show range slider on all subplots
-            rangeslider: { visible: true, thickness: 0.05 },
+            // Show range slider on all subplots (thinner on mobile)
+            rangeslider: { visible: true, thickness: isMobile ? 0.03 : 0.05 },
             // Only show range selector on first subplot
             rangeselector: idx === 0 ? {
                 buttons: [
@@ -420,39 +461,46 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
     container.innerHTML = '<p class="loading">Loading benchmark data...</p>';
     
     try {
-        // Discover and fetch benchmark files
-        const files = await discoverBenchmarkFiles();
+        // Discover and fetch benchmark files for both CPU and GPU
+        const cpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_cpu.json');
+        const gpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_gpu.json');
         
-        console.log(`Found ${files.length} benchmark files in manifest`);
+        console.log(`Found ${cpuFiles.length} CPU benchmark files and ${gpuFiles.length} GPU benchmark files`);
         
-        if (files.length === 0) {
-            container.innerHTML = '<p class="error">No benchmark data available. Please generate <code>benchmarks_manifest.json</code>.</p>';
+        if (cpuFiles.length === 0 && gpuFiles.length === 0) {
+            container.innerHTML = '<p class="error">No benchmark data available. Please generate manifest files.</p>';
             return;
         }
         
         // Fetch all benchmark data with progress tracking
         console.log('Fetching benchmark data...');
-        const benchmarkData = await Promise.all(
-            files.map(file => fetchJSON(file))
+        const cpuBenchmarkData = await Promise.all(
+            cpuFiles.map(file => fetchJSON(file))
+        );
+        const gpuBenchmarkData = await Promise.all(
+            gpuFiles.map(file => fetchJSON(file))
         );
         
-        const validData = benchmarkData.filter(d => d !== null);
-        const failedCount = files.length - validData.length;
+        const validCpuData = cpuBenchmarkData.filter(d => d !== null);
+        const validGpuData = gpuBenchmarkData.filter(d => d !== null);
+        const failedCount = (cpuFiles.length + gpuFiles.length) - (validCpuData.length + validGpuData.length);
         
-        console.log(`Successfully loaded ${validData.length} files, ${failedCount} failed`);
+        console.log(`Successfully loaded ${validCpuData.length} CPU files and ${validGpuData.length} GPU files, ${failedCount} failed`);
         
-        if (validData.length === 0) {
+        if (validCpuData.length === 0 && validGpuData.length === 0) {
             container.innerHTML = '<p class="error">Failed to load benchmark data. Check browser console for details.</p>';
             return;
         }
         
-        // Group by benchmark name
-        const groups = groupFilesByBenchmark(validData);
+        // Group by benchmark name with CPU/GPU prefix to keep them separate
+        const cpuGroups = groupFilesByBenchmark(validCpuData, 'CPU_');
+        const gpuGroups = groupFilesByBenchmark(validGpuData, 'GPU_');
         
-        console.log(`Grouped into ${Object.keys(groups).length} benchmark types:`, Object.keys(groups));
+        console.log(`Grouped into ${Object.keys(cpuGroups).length} CPU benchmark types:`, Object.keys(cpuGroups));
+        console.log(`Grouped into ${Object.keys(gpuGroups).length} GPU benchmark types:`, Object.keys(gpuGroups));
         
         // Create Plotly figure
-        const figure = createPlotlyFigure(groups);
+        const figure = createPlotlyFigure(cpuGroups, gpuGroups);
         
         if (!figure) {
             container.innerHTML = '<p class="error">No valid benchmark groups found.</p>';
@@ -482,6 +530,28 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
                     window.open(commitUrl, '_blank');
                 });
             }
+        });
+        
+        // Add legend click handler for isolating traces with shift+click
+        container.on('plotly_legendclick', function(data) {
+            const clickedIndex = data.curveNumber;
+            const event = data.event;
+            
+            // Check if shift key is pressed
+            if (event.shiftKey) {
+                // Get all trace indices that share the same legend group
+                const clickedTrace = figure.traces[clickedIndex];
+                const clickedLegendGroup = clickedTrace.legendgroup;
+                
+                // Create visibility array: show only traces with matching legend group
+                const visibility = figure.traces.map(trace => 
+                    trace.legendgroup === clickedLegendGroup ? true : 'legendonly'
+                );
+                
+                Plotly.restyle(container, { visible: visibility });
+                return false; // Prevent default legend click behavior
+            }
+            // Otherwise, allow default legend click behavior (toggle single trace)
         });
         
     } catch (error) {
