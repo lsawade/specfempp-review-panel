@@ -59,6 +59,24 @@ async function discoverBenchmarkFiles(manifestFile) {
 }
 
 /**
+ * Filter a list of manifest file paths to only those within the last `days` days.
+ * Pass days=null to return all files.
+ * Timestamp is extracted from the directory name pattern YYYYMMDD_HHMMSS in each path.
+ */
+function filterFilesByDays(files, days) {
+    if (days === null || days === undefined) return files;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return files.filter(path => {
+        const match = path.match(/(\d{8})_(\d{6})/);
+        if (!match) return true; // keep if we can't parse
+        const dateStr = match[1]; // YYYYMMDD
+        const timeStr = match[2]; // HHMMSS
+        const iso = `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}T${timeStr.slice(0,2)}:${timeStr.slice(2,4)}:${timeStr.slice(4,6)}Z`;
+        return new Date(iso).getTime() >= cutoff;
+    });
+}
+
+/**
  * Group benchmark files by benchmark name with optional prefix
  */
 function groupFilesByBenchmark(benchmarkData, prefix = '') {
@@ -450,8 +468,10 @@ function createPlotlyFigure(cpuBenchmarkGroups, gpuBenchmarkGroups) {
 
 /**
  * Render the benchmark plots
+ * @param {string} containerId - ID of the container element
+ * @param {number|null} days - Number of days to load (null = all)
  */
-async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
+async function renderBenchmarkPlots(containerId = 'benchmark-plots', days = 30) {
     const container = document.getElementById(containerId);
     
     if (!container) {
@@ -459,15 +479,20 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
         return;
     }
     
+    const rangeLabel = days === null ? 'all time' : `last ${days} days`;
     // Show loading message
-    container.innerHTML = '<p class="loading">Loading benchmark data...</p>';
+    container.innerHTML = `<p class="loading">Loading benchmark data (${rangeLabel})...</p>`;
     
     try {
         // Discover and fetch benchmark files for both CPU and GPU
-        const cpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_cpu.json');
-        const gpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_gpu.json');
+        const allCpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_cpu.json');
+        const allGpuFiles = await discoverBenchmarkFiles('benchmarks_manifest_gpu.json');
+
+        const cpuFiles = filterFilesByDays(allCpuFiles, days);
+        const gpuFiles = filterFilesByDays(allGpuFiles, days);
         
-        console.log(`Found ${cpuFiles.length} CPU benchmark files and ${gpuFiles.length} GPU benchmark files`);
+        console.log(`Found ${allCpuFiles.length} CPU files, showing ${cpuFiles.length} (${rangeLabel})`);
+        console.log(`Found ${allGpuFiles.length} GPU files, showing ${gpuFiles.length} (${rangeLabel})`);
         
         if (cpuFiles.length === 0 && gpuFiles.length === 0) {
             container.innerHTML = '<p class="error">No benchmark data available. Please generate manifest files.</p>';
@@ -544,11 +569,11 @@ async function renderBenchmarkPlots(containerId = 'benchmark-plots') {
     }
 }
 
-// Auto-render when DOM is ready
+// Auto-render when DOM is ready (default: last 30 days)
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => renderBenchmarkPlots());
+    document.addEventListener('DOMContentLoaded', () => renderBenchmarkPlots('benchmark-plots', 30));
 } else {
-    renderBenchmarkPlots();
+    renderBenchmarkPlots('benchmark-plots', 30);
 }
 
 // Handle responsive layout changes
@@ -574,7 +599,10 @@ window.addEventListener('resize', () => {
             // Need to re-render with different layout (1 col vs 2 col grid)
             console.log(`Layout breakpoint crossed (${wasDesktop ? 'desktop -> mobile' : 'mobile -> desktop'}), re-rendering plots...`);
             lastWidth = currentWidth;
-            renderBenchmarkPlots();
+            // Preserve the currently selected day range
+            const activeDaysBtn = document.querySelector('#benchmark-range-buttons button.active');
+            const activeDays = activeDaysBtn ? (activeDaysBtn.dataset.days === 'all' ? null : parseInt(activeDaysBtn.dataset.days, 10)) : 30;
+            renderBenchmarkPlots('benchmark-plots', activeDays);
         }
         // Otherwise do nothing - Plotly's autosize in config handles it
     }, 250); // Debounce

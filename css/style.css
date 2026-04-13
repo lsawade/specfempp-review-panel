@@ -40,6 +40,34 @@ body {
     margin-bottom: 1rem;
 }
 
+#benchmark-range-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.range-btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid #72aae2;
+    border-radius: 4px;
+    background: white;
+    color: #2c3e50;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.range-btn:hover {
+    background: #d6e8f7;
+}
+
+.range-btn.active {
+    background: #72aae2;
+    color: white;
+    font-weight: 600;
+}
+
 .benchmark-section a {
     display: block;
     transition: opacity 0.3s ease;

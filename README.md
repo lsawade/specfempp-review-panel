@@ -71,7 +71,7 @@ const GITHUB_REPO = 'PrincetonUniversity/SPECFEMPP'; // Change to 'owner/repo'
 
 ## Benchmark Plots Setup
 
-The dashboard displays interactive benchmark plots using Plotly.js with automatic daily updates.
+The dashboard displays interactive benchmark plots using Plotly.js with automatic daily updates. Benchmarks are organized into separate CPU and GPU (H100) categories.
 
 ### Initial Setup
 
@@ -88,20 +88,21 @@ The dashboard displays interactive benchmark plots using Plotly.js with automati
    Edit `scripts/sync_benchmarks.sh` and modify these variables:
 
    ```bash
-   DEST_DIR="/tigress/lsawade/public_html/minimal_specfempp_review/benchmarks"
-   MANIFEST_FILE="/tigress/lsawade/public_html/minimal_specfempp_review/benchmarks_manifest.json"
+   DEST_DIR="/projects/TROMP/public_html/specfempp-review-panel/benchmarks"
+   MANIFEST_CPU_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest_cpu.json"
+   MANIFEST_GPU_FILE="/projects/TROMP/public_html/specfempp-review-panel/benchmarks_manifest_gpu.json"
    ```
 
 3. **Run Initial Setup**
 
    ```bash
-   cd /tigress/lsawade/public_html/minimal_specfempp_review
+   cd /projects/TROMP/public_html/specfempp-review-panel
    ./scripts/setup_cron.sh
    ```
 
    This will:
-   - Sync benchmark data from source to web directory
-   - Generate `benchmarks_manifest.json` listing all available files
+   - Sync CPU and GPU benchmark data separately from source to web directory
+   - Generate `benchmarks_manifest_cpu.json` and `benchmarks_manifest_gpu.json` listing all available files
    - Set up a cron job to run daily at 6:00 AM
    - Create a log file at `sync_benchmarks.log`
 
@@ -115,21 +116,28 @@ To manually sync benchmarks without waiting for cron:
 
 ### How It Works
 
-- **`sync_benchmarks.sh`**: Uses `rsync` to copy only `profiles.json` files from the benchmark source directory, then auto-generates the manifest file
+- **`sync_benchmarks.sh`**: Uses `rsync` to copy only `profiles.json` files from the benchmark source directory (separately for CPU and GPU), then auto-generates separate manifest files for each
 - **`setup_cron.sh`**: Configures a daily cron job (6 AM) to keep benchmarks up-to-date
-- **`benchmarks_manifest.json`**: Lists all benchmark files with relative paths for the browser to fetch
-- **`js/plot_benchmarks.js`**: Fetches the manifest and renders interactive Plotly charts
+- **`benchmarks_manifest_cpu.json`**: Lists all CPU benchmark files with relative paths for the browser to fetch
+- **`benchmarks_manifest_gpu.json`**: Lists all GPU benchmark files with relative paths for the browser to fetch
+- **`js/plot_benchmarks.js`**: Fetches both manifests and renders interactive Plotly charts in a 2x2 grid (CPU top row, GPU bottom row)
 
 ### Benchmark Plot Features
 
-- **Interactive**: Hover for detailed timing information
+- **Dual Architecture Display**: 
+  - CPU benchmarks displayed in top row
+  - GPU (H100) benchmarks displayed in bottom row
+  - 2x2 grid layout on desktop, stacked vertically on mobile
+- **Interactive**: Hover for detailed timing information including hardware specs and git commit details
 - **Responsive Date Controls**: 
   - Range sliders (minimaps) on each subplot
-  - Quick selectors (1w, 1m, 3m, All)
+  - Quick selectors (1w, 1m, 3m, All) synchronized across all plots
   - Synchronized zooming across all subplots
-- **Smart Labels**: Total execution time labels appear only when viewing ≤7 days
+- **Legend Interaction**:
+  - Single click to toggle individual regions
+  - Double-click to isolate a single region (hide all others)
 - **Stacked Bars**: Shows execution time breakdown by computation region
-- **Multiple Benchmarks**: Side-by-side comparison (2 columns)
+- **Click-through to GitHub**: Click on bars to view the corresponding git commit
 - **Client-Side Rendering**: No server processing needed - all happens in browser
 
 ### Moving to a Different Server
@@ -139,7 +147,8 @@ If deploying to a new location:
 1. Update paths in `scripts/sync_benchmarks.sh`:
    - `SOURCE_DIR`: Where benchmark data is stored
    - `DEST_DIR`: Where web files are served from
-   - `MANIFEST_FILE`: Location of the generated manifest
+   - `MANIFEST_CPU_FILE`: Location of the generated CPU manifest
+   - `MANIFEST_GPU_FILE`: Location of the generated GPU manifest
 
 2. Run the setup script:
    ```bash
@@ -170,8 +179,10 @@ If deploying to a new location:
 - `scripts/setup_cron.sh` - Sets up automated daily sync via cron
 
 ### Generated Files
-- `benchmarks_manifest.json` - List of benchmark files (auto-generated)
-- `benchmarks/` - Directory containing synced benchmark data
+- `benchmarks_manifest_cpu.json` - List of CPU benchmark files (auto-generated)
+- `benchmarks_manifest_gpu.json` - List of GPU benchmark files (auto-generated)
+- `benchmarks/cpu/` - Directory containing synced CPU benchmark data
+- `benchmarks/gpu/` - Directory containing synced GPU benchmark data
 - `sync_benchmarks.log` - Log file from sync operations
 
 ## Security Notes

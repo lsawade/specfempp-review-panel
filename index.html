@@ -16,9 +16,24 @@
 
         <div class="benchmark-section">
             <h2>Nightly Benchmarks</h2>
+            <div id="benchmark-range-buttons">
+                <button class="range-btn active" data-days="30">Last 30 days</button>
+                <button class="range-btn" data-days="90">Last 90 days</button>
+                <button class="range-btn" data-days="all">All</button>
+            </div>
             <!-- Interactive Plotly benchmark plots rendered by plot_benchmarks.js -->
             <div id="benchmark-plots" style="width:100%; min-height:600px;"></div>
         </div>
+        <script>
+            document.getElementById('benchmark-range-buttons').addEventListener('click', function(e) {
+                const btn = e.target.closest('.range-btn');
+                if (!btn) return;
+                document.querySelectorAll('#benchmark-range-buttons .range-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const days = btn.dataset.days === 'all' ? null : parseInt(btn.dataset.days, 10);
+                renderBenchmarkPlots('benchmark-plots', days);
+            });
+        </script>
 
         
         
